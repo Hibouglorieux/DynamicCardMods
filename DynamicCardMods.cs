@@ -42,6 +42,8 @@ namespace DynamicCardMods
 		public ConfigEntry<bool> bPoolIsShared;
 		public ConfigEntry<int> minimumAmountOfCardsPerPlayer;
 		public ConfigEntry<int> minimumDifferentMods;
+		public ConfigEntry<bool> bKeepSameOnRematch;
+		System.Random random = new System.Random();
 		public List<ConfigEntry<string>> baseCardMods = new List<ConfigEntry<string>>(10);
 
 		internal int seed = 0;
@@ -51,14 +53,16 @@ namespace DynamicCardMods
 			// Use this to call any harmony patch files your mod may have
 			instance = this;
 
+			bIsActive = Config.Bind(ModName, nameof(bIsActive), true,
+				"Activate/deactive the mod");
 			minimumAmountOfCardsPerPlayer = Config.Bind(ModName, nameof(minimumAmountOfCardsPerPlayer), 75,
 				"Minimum amount of cards for each player");
 			minimumDifferentMods = Config.Bind(ModName, nameof(minimumDifferentMods), 1,
 				"Minimum amount of card mods to be active");
-			bIsActive = Config.Bind(ModName, nameof(bIsActive), true,
-				"Activate/deactive the mod");
 			bPoolIsShared = Config.Bind(ModName, nameof(bPoolIsShared), false,
 				"Makes all player share the same pool of cards");
+			bKeepSameOnRematch = Config.Bind(ModName, nameof(bKeepSameOnRematch), false,
+				"Keep the same card mods upon rematch");
 			for (int i = 0; i < baseCardMods.Capacity; i++)
 				baseCardMods.Add(Config.Bind(ModName, nameof(baseCardMods) + i, "",
 				"Mod that should always be here"));
@@ -71,6 +75,8 @@ namespace DynamicCardMods
 			bCurseActivated = BepInEx.Bootstrap.Chainloader.PluginInfos.ContainsKey("com.willuwontu.rounds.managers");
 			OptionMenu.RegisterMenu();
 
+			seed = UnityEngine.Random.Range(0, int.MaxValue);
+			random = new Random(seed);
 			Unbound.RegisterHandshake(ModId, OnHandshakeCompleted);
 			GameModeManager.AddHook(GameModeHooks.HookGameStart, OnGameStart);
 			GameModeManager.AddHook(GameModeHooks.HookGameEnd, OnGameEnd);
@@ -81,12 +87,15 @@ namespace DynamicCardMods
 			if (PhotonNetwork.IsMasterClient)
 			{
 				seed = UnityEngine.Random.Range(0, int.MaxValue);
+				random = new System.Random(seed);
+
 				string[] baseMods = baseCardMods.Select(configEntry => (configEntry.Value)).ToArray();
 				NetworkingManager.RPC_Others(typeof(DynamicCardMods), nameof(SyncSettings),
 					new object[] {
 						seed,
 						bIsActive.Value,
 						bPoolIsShared.Value,
+						bKeepSameOnRematch.Value,
 						minimumAmountOfCardsPerPlayer.Value,
 						minimumDifferentMods.Value,
 						baseMods
@@ -95,24 +104,28 @@ namespace DynamicCardMods
 		}
 
 		[UnboundRPC]
-		private static void SyncSettings(int syncSeed, bool bActive, bool bPoolShared, int minCards, int minMods, string[] baseMods)
+		private static void SyncSettings(int syncSeed, bool bActive, bool bPoolShared, bool bKeepSameOnRematch, int minCards, int minMods, string[] baseMods)
 		{
 			instance.seed = syncSeed;
 			instance.bIsActive.Value = bActive;
 			instance.bPoolIsShared.Value = bPoolShared;
+			instance.bKeepSameOnRematch.Value = bKeepSameOnRematch;
 			instance.minimumAmountOfCardsPerPlayer.Value = minCards;
 			instance.minimumDifferentMods.Value = minMods;
 			for (int i = 0; i < baseMods.Length; i++)
 				instance.baseCardMods[i].Value = baseMods[i];
+
+			instance.random = new System.Random(instance.seed);
 		}
 
 		internal void GatherCardModsInfo()
 		{
+			// redo in case it was edited between two games
 			blacklistedCategories.Clear();
+			cardsPerMod.Clear();
 
 			//Cards.active is all ACTIVE cards
 			//CardManager is all cards including deactivated !
-			cardsPerMod.Clear(); // redo in case it was edited between two games
 			List<Card> cardsFromCardManager = CardManager.cards.Values.ToList();
 			foreach (Card card in cardsFromCardManager)
 			{
@@ -158,15 +171,16 @@ namespace DynamicCardMods
 
 
 			// we don't care if we're in local, if we're online then get the seed that has been given by masterClient
-			int seedToUse = PhotonNetwork.OfflineMode ? UnityEngine.Random.Range(0, int.MaxValue) : seed;
-			//Log("my seed to use is: " + seedToUse);
-			System.Random rand = new System.Random(seedToUse);
+			if (bKeepSameOnRematch.Value)
+				random = new System.Random(seed);
+			if (bKeepSameOnRematch.Value)
+				random = new System.Random(seed);
 			// Hold on, should this run only on master or each player ?
 			// Do i need to sync it ?
 			// How to sync it ?
 			if (bPoolIsShared.Value)
 			{
-				List<CardCategory> categoriesToBlacklist = MakeBlacklistedCategories(minimumAmountOfCardsPerPlayer.Value, rand);
+				List<CardCategory> categoriesToBlacklist = MakeBlacklistedCategories(minimumAmountOfCardsPerPlayer.Value);
 				foreach (Player player in PlayerManager.instance.players)
 				{
 					Log("for player: " + player.playerID + " whitelist is: ");
@@ -178,7 +192,7 @@ namespace DynamicCardMods
 			else foreach (Player player in PlayerManager.instance.players)
 				{
 					Log("for player: " + player.playerID + " whitelist is: ");
-					List<CardCategory> categoriesToBlacklist = MakeBlacklistedCategories(minimumAmountOfCardsPerPlayer.Value, rand);
+					List<CardCategory> categoriesToBlacklist = MakeBlacklistedCategories(minimumAmountOfCardsPerPlayer.Value);
 					blacklistedCategories.Add(player, categoriesToBlacklist.ToArray());
 					ModdingUtils.Extensions.CharacterStatModifiersExtension.GetAdditionalData(player.data.stats).blacklistedCategories.AddRange(categoriesToBlacklist);
 				}
@@ -211,7 +225,7 @@ namespace DynamicCardMods
 			return total;
 		}
 
-		private List<CardCategory> MakeBlacklistedCategories(int minimumAmountOfCards, System.Random rand)
+		private List<CardCategory> MakeBlacklistedCategories(int minimumAmountOfCards)
 		{
 			List<CardCategory> categoriesToBlacklist = new List<CardCategory>();
 			int currentCardsAdded = 0;
@@ -234,7 +248,7 @@ namespace DynamicCardMods
 				(modsAdded < minimumDifferentMods.Value || minimumDifferentMods.Value >= blacklist.Count))
 				&& blacklist.Count > 0)
 			{
-				int randomIndex = rand.Next(blacklist.Count);
+				int randomIndex = random.Next(blacklist.Count);
 				CardCategory categoryToAdd = blacklist[randomIndex];
 
 				Log(categoryToAdd.name);

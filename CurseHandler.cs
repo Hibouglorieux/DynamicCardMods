@@ -7,7 +7,6 @@ namespace DynamicCardMods
 {
 	internal class CurseHandler
 	{
-
 		public static bool IsACurse(CardInfo cardToTest)
 		{
 			for (int i = 0; i < cardToTest.categories.Length; i++)
