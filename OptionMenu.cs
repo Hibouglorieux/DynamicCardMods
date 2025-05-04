@@ -22,37 +22,41 @@ namespace DynamicCardMods
 		{
 			foreach (GameObject option in options)
 			{
+				// this moves the title as child are not taken into account from their verticalBox
 				//option.SetActive(bVisible);
-				option.transform.localScale = bVisible ? Vector3.zero : Vector3.one;
+				option.transform.localScale = bVisible ? Vector3.one : Vector3.zero;
 			}
 		}
 
 		private static void UpdateBaseCardMods(bool shoulBeBase, string cardCategoryName, int toggleIndex)
 		{
-			DynamicCardMods.instance.Log("called update with toggleIndex: ");
 			if (!shoulBeBase)
 			{
-				if (DynamicCardMods.instance.baseCardMod1.Value == cardCategoryName)
-					DynamicCardMods.instance.baseCardMod1.Value = "";
-				if (DynamicCardMods.instance.baseCardMod2.Value == cardCategoryName)
-					DynamicCardMods.instance.baseCardMod2.Value = "";
-				if (DynamicCardMods.instance.baseCardMod3.Value == cardCategoryName)
-					DynamicCardMods.instance.baseCardMod3.Value = "";
+				for (int i = 0; i < DynamicCardMods.instance.baseCardMods.Count; i++)
+				{
+					if (DynamicCardMods.instance.baseCardMods[i].Value == cardCategoryName)
+						DynamicCardMods.instance.baseCardMods[i].Value = "";
+
+				}
 			}
 			if (shoulBeBase)
 			{
-				if (DynamicCardMods.instance.baseCardMod1.Value == "")
-					DynamicCardMods.instance.baseCardMod1.Value = cardCategoryName;
-				else if (DynamicCardMods.instance.baseCardMod2.Value == "")
-					DynamicCardMods.instance.baseCardMod2.Value = cardCategoryName;
-				else if (DynamicCardMods.instance.baseCardMod3.Value == "")
-					DynamicCardMods.instance.baseCardMod3.Value = cardCategoryName;
-				else
+				bool bAdded = false;
+				for (int i = 0; i < DynamicCardMods.instance.baseCardMods.Count; i++)
 				{
-					options[toggleIndex].GetComponent<Toggle>().isOn = false;
-					DynamicCardMods.instance.Log("Only 3 max base card mods");
+					if (DynamicCardMods.instance.baseCardMods[i].Value == "")
+					{
+						DynamicCardMods.instance.baseCardMods[i].Value = cardCategoryName;
+						bAdded = true;
+						break;
+					}
 				}
 
+				if (!bAdded)
+				{
+					options[toggleIndex].GetComponent<Toggle>().isOn = false;
+					DynamicCardMods.Log("Only " + DynamicCardMods.instance.baseCardMods.Count + " max base card mods");
+				}
 			}
 		}
 
@@ -61,14 +65,19 @@ namespace DynamicCardMods
 			options.Clear();
 			MenuHandler.CreateText(DynamicCardMods.ModName + " Options", menu, out TextMeshProUGUI _);
 			MenuHandler.CreateText("", menu, out TextMeshProUGUI _);
-			
+
 			MenuHandler.CreateText("", menu, out TextMeshProUGUI _);
-			MenuHandler.CreateToggle(!DynamicCardMods.instance.bIsActive.Value, "DeactivateMod",
-				menu, (bool bNewValue) => { DynamicCardMods.instance.bIsActive.Value = bNewValue;
+			MenuHandler.CreateToggle(DynamicCardMods.instance.bIsActive.Value, "Active",
+				menu, (bool bNewValue) =>
+				{
+					DynamicCardMods.instance.bIsActive.Value = bNewValue;
 					ActivateUI(bNewValue);
 				});
 
-			options.Add(MenuHandler.CreateSlider("Minimum amount of cards in players card pool", menu, 30, 75, 2000,
+			options.Add(MenuHandler.CreateText("Warning: very low amount can result in almost no choice if you", menu, out TextMeshProUGUI _, 30));
+			options.Add(MenuHandler.CreateText("have no card mods enabled at all time", menu, out TextMeshProUGUI _, 30));
+			options.Add(MenuHandler.CreateText("(minimum amount is around 60 without no card mods enabled at all time)", menu, out TextMeshProUGUI _, 25));
+			options.Add(MenuHandler.CreateSlider("Minimum amount of cards in players card pool", menu, 30, 1, 2000,
 				DynamicCardMods.instance.minimumAmountOfCardsPerPlayer.Value,
 				(float newValue) => { DynamicCardMods.instance.minimumAmountOfCardsPerPlayer.Value = (int)newValue; }, out UnityEngine.UI.Slider _, true));
 
@@ -83,25 +92,25 @@ namespace DynamicCardMods
 
 
 			MenuHandler.CreateText("", menu, out TextMeshProUGUI _);
-			MenuHandler.CreateText("Chose up to 3 card mods to be there everytime", menu, out TextMeshProUGUI _, 50);
-			MenuHandler.CreateText("(these mods are not taken into account for minimum values above)", menu, out TextMeshProUGUI _, 40);
+			options.Add(MenuHandler.CreateText("Chose card mods to be there at all time", menu, out TextMeshProUGUI _, 50));
+			options.Add(MenuHandler.CreateText("(these mods are not taken into account for minimum values above)", menu, out TextMeshProUGUI _, 25));
+			options.Add(MenuHandler.CreateText("(maximum amount is " + DynamicCardMods.instance.baseCardMods.Count +")", menu, out TextMeshProUGUI _, 25));
+
 			DynamicCardMods.instance.GatherCardModsInfo();
 			int i = options.Count;
-			foreach (CardCategory category in DynamicCardMods.instance.cardsPerMod.Keys)
+			foreach (CardCategory category in DynamicCardMods.instance.cardsPerMod.Keys.OrderBy(elem => (elem.name)).ToArray())
 			{
 				int indexOfToggle = i;
 				string categoryName = category.name;
 
 				options.Add(MenuHandler.CreateToggle(
-					category.name == DynamicCardMods.instance.baseCardMod1.Value
-					|| category.name == DynamicCardMods.instance.baseCardMod2.Value
-					|| category.name == DynamicCardMods.instance.baseCardMod3.Value
+					DynamicCardMods.instance.baseCardMods.Any(configEntry => configEntry.Value == categoryName)
 					? true : false,
 					category.name.Substring("__pack-".Length),
 					menu, (bool bNewValue) => { UpdateBaseCardMods(bNewValue, categoryName, indexOfToggle); }));
+
 				i++;
 			}
-			DynamicCardMods.instance.Log("Went fine");
 		}
 	}
 }

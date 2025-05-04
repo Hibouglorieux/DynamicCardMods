@@ -38,13 +38,11 @@ namespace DynamicCardMods
 		internal Dictionary<CardCategory, int> cardsPerMod = new Dictionary<CardCategory, int>();
 		internal Dictionary<Player, CardCategory[]> blacklistedCategories = new Dictionary<Player, CardCategory[]>();
 
+		public ConfigEntry<bool> bIsActive;
+		public ConfigEntry<bool> bPoolIsShared;
 		public ConfigEntry<int> minimumAmountOfCardsPerPlayer;
 		public ConfigEntry<int> minimumDifferentMods;
-		public ConfigEntry<bool> bPoolIsShared;
-		public ConfigEntry<bool> bIsActive;
-		public ConfigEntry<string> baseCardMod1;
-		public ConfigEntry<string> baseCardMod2;
-		public ConfigEntry<string> baseCardMod3;
+		public List<ConfigEntry<string>> baseCardMods = new List<ConfigEntry<string>>(10);
 
 		internal int seed = 0;
 
@@ -57,16 +55,13 @@ namespace DynamicCardMods
 				"Minimum amount of cards for each player");
 			minimumDifferentMods = Config.Bind(ModName, nameof(minimumDifferentMods), 1,
 				"Minimum amount of card mods to be active");
-			bIsActive = Config.Bind(ModName, nameof(bIsActive), false,
+			bIsActive = Config.Bind(ModName, nameof(bIsActive), true,
 				"Activate/deactive the mod");
 			bPoolIsShared = Config.Bind(ModName, nameof(bPoolIsShared), false,
 				"Makes all player share the same pool of cards");
-			baseCardMod1 = Config.Bind(ModName, nameof(baseCardMod1), "",
-				"Mod1 that should always be here");
-			baseCardMod2 = Config.Bind(ModName, nameof(baseCardMod2), "",
-				"Mod1 that should always be here");
-			baseCardMod3 = Config.Bind(ModName, nameof(baseCardMod3), "",
-				"Mod1 that should always be here");
+			for (int i = 0; i < baseCardMods.Capacity; i++)
+				baseCardMods.Add(Config.Bind(ModName, nameof(baseCardMods) + i, "",
+				"Mod that should always be here"));
 
 			var harmony = new Harmony(ModId);
 			harmony.PatchAll();
@@ -83,29 +78,38 @@ namespace DynamicCardMods
 
 		private void OnHandshakeCompleted()
 		{
+			Log("Handshake OK");
 			if (PhotonNetwork.IsMasterClient)
 			{
 				seed = UnityEngine.Random.Range(0, int.MaxValue);
+				string[] baseMods = baseCardMods.Select(configEntry => (configEntry.Value)).ToArray();
 				NetworkingManager.RPC_Others(typeof(DynamicCardMods), nameof(SyncSettings),
 					new object[] {
+						seed,
+						bIsActive.Value,
 						bPoolIsShared.Value,
 						minimumAmountOfCardsPerPlayer.Value,
-						seed
+						minimumDifferentMods.Value,
+						baseMods
 					});
 			}
 		}
 
 		[UnboundRPC]
-		private static void SyncSettings(bool bPoolShared, int minCards, int syncSeed)
+		private static void SyncSettings(int syncSeed, bool bActive, bool bPoolShared, int minCards, int minMods, string[] baseMods)
 		{
-			instance.bPoolIsShared.Value = (bool)bPoolShared;
-			instance.minimumAmountOfCardsPerPlayer.Value = (int)minCards;
-			instance.seed = (int)syncSeed;
+			Log("SyncSettings OK");
+			instance.seed = syncSeed;
+			instance.bIsActive.Value = bActive;
+			instance.bPoolIsShared.Value = bPoolShared;
+			instance.minimumAmountOfCardsPerPlayer.Value = minCards;
+			instance.minimumDifferentMods.Value = minCards;
+			for (int i = 0; i < baseMods.Length; i++)
+				instance.baseCardMods[i].Value = baseMods[i];
 		}
 
 		internal void GatherCardModsInfo()
 		{
-			Log("GatherCardModsInfo called !");
 			blacklistedCategories.Clear();
 
 			//Cards.active is all ACTIVE cards
@@ -132,25 +136,13 @@ namespace DynamicCardMods
 					cardsPerMod[cardCategory]++;
 			}
 
-			//clear if mod isn't present anymore
-			bool b1Exist = false;
-			bool b2Exist = false;
-			bool b3Exist = false;
-			foreach (CardCategory category in cardsPerMod.Keys)
+			//clear settings if mod isn't present anymore
+
+			for (int i = 0; i < baseCardMods.Count; i++)
 			{
-				if (category.name == baseCardMod1.Value)
-					b1Exist = true;
-				if (category.name == baseCardMod2.Value)
-					b2Exist = true;
-				if (category.name == baseCardMod3.Value)
-					b3Exist = true;
+				if (!cardsPerMod.Any(tuple => (tuple.Key.name == baseCardMods[i].Value)))
+					baseCardMods[i].Value = "";
 			}
-			if (!b1Exist)
-				baseCardMod1.Value = "";
-			if (!b2Exist)
-				baseCardMod2.Value = "";
-			if (!b3Exist)
-				baseCardMod3.Value = "";
 
 			/*
 			foreach (var (mod, number) in cardsPerMod)
@@ -214,12 +206,8 @@ namespace DynamicCardMods
 			int total = 0;
 			foreach (var (category, numberOfCards) in cardsPerMod)
 			{
-				if (baseCardMod1.Value == category.name
-				|| baseCardMod2.Value == category.name
-				|| baseCardMod3.Value == category.name)
-				{
+				if (baseCardMods.Any(configEntry => (configEntry.Value == category.name)))
 					continue;
-				}
 				total += numberOfCards;
 			}
 			return total;
@@ -230,11 +218,12 @@ namespace DynamicCardMods
 			List<CardCategory> categoriesToBlacklist = new List<CardCategory>();
 			int currentCardsAdded = 0;
 
-			List<CardCategory> orderedKeys = cardsPerMod.Keys.OrderBy(k => k.name).ToList();
-			//whitelist base mods
-			orderedKeys.Remove(CustomCardCategories.instance.CardCategory(baseCardMod1.Value));
-			orderedKeys.Remove(CustomCardCategories.instance.CardCategory(baseCardMod2.Value));
-			orderedKeys.Remove(CustomCardCategories.instance.CardCategory(baseCardMod3.Value));
+			// gather all categories
+			List<CardCategory> blacklist = cardsPerMod.Keys.OrderBy(k => k.name).ToList();
+
+			// remove whitelisted base cardMods
+			for (int i = 0; i < baseCardMods.Count; i++)
+				blacklist.Remove(CustomCardCategories.instance.CardCategory(baseCardMods[i].Value));
 
 			int totalActiveCards = GetTotalActiveCards();
 			if (totalActiveCards <= minimumAmountOfCards)
@@ -242,23 +231,24 @@ namespace DynamicCardMods
 
 			int modsAdded = 0;
 
-			while (currentCardsAdded < minimumAmountOfCards ||
-				(modsAdded < minimumDifferentMods.Value || minimumDifferentMods.Value >= orderedKeys.Count)
-				&& orderedKeys.Count > 0)
+			// get a random mod to whitelist and remove it from orderedKeys
+			while ((currentCardsAdded < minimumAmountOfCards ||
+				(modsAdded < minimumDifferentMods.Value || minimumDifferentMods.Value >= blacklist.Count))
+				&& blacklist.Count > 0)
 			{
-				int randomIndex = rand.Next(orderedKeys.Count);
-				CardCategory categoryToAdd = orderedKeys[randomIndex];
+				int randomIndex = rand.Next(blacklist.Count);
+				CardCategory categoryToAdd = blacklist[randomIndex];
 
 				Log(categoryToAdd.name);
 				currentCardsAdded += cardsPerMod[categoryToAdd];
-				orderedKeys.RemoveAt(randomIndex);
+				blacklist.RemoveAt(randomIndex);
 				modsAdded++;
 			}
 			// Only unwanted categories remain
-			return orderedKeys;
+			return blacklist;
 		}
 
-		internal void Log(string message)
+		static internal void Log(string message)
 		{
 #if DEBUG
 			UnityEngine.Debug.Log(ModName +": " + message);
