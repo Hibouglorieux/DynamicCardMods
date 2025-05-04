@@ -111,6 +111,8 @@ namespace DynamicCardMods
 
 				i++;
 			}
+
+			ActivateUI(DynamicCardMods.instance.bIsActive.Value);
 		}
 	}
 }

@@ -78,7 +78,6 @@ namespace DynamicCardMods
 
 		private void OnHandshakeCompleted()
 		{
-			Log("Handshake OK");
 			if (PhotonNetwork.IsMasterClient)
 			{
 				seed = UnityEngine.Random.Range(0, int.MaxValue);
@@ -98,12 +97,11 @@ namespace DynamicCardMods
 		[UnboundRPC]
 		private static void SyncSettings(int syncSeed, bool bActive, bool bPoolShared, int minCards, int minMods, string[] baseMods)
 		{
-			Log("SyncSettings OK");
 			instance.seed = syncSeed;
 			instance.bIsActive.Value = bActive;
 			instance.bPoolIsShared.Value = bPoolShared;
 			instance.minimumAmountOfCardsPerPlayer.Value = minCards;
-			instance.minimumDifferentMods.Value = minCards;
+			instance.minimumDifferentMods.Value = minMods;
 			for (int i = 0; i < baseMods.Length; i++)
 				instance.baseCardMods[i].Value = baseMods[i];
 		}
@@ -161,7 +159,7 @@ namespace DynamicCardMods
 
 			// we don't care if we're in local, if we're online then get the seed that has been given by masterClient
 			int seedToUse = PhotonNetwork.OfflineMode ? UnityEngine.Random.Range(0, int.MaxValue) : seed;
-			Log("my seed to use is: " + seedToUse);
+			//Log("my seed to use is: " + seedToUse);
 			System.Random rand = new System.Random(seedToUse);
 			// Hold on, should this run only on master or each player ?
 			// Do i need to sync it ?
