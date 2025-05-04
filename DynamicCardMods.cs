@@ -55,7 +55,7 @@ namespace DynamicCardMods
 
 			bIsActive = Config.Bind(ModName, nameof(bIsActive), true,
 				"Activate/deactive the mod");
-			minimumAmountOfCardsPerPlayer = Config.Bind(ModName, nameof(minimumAmountOfCardsPerPlayer), 75,
+			minimumAmountOfCardsPerPlayer = Config.Bind(ModName, nameof(minimumAmountOfCardsPerPlayer), 150,
 				"Minimum amount of cards for each player");
 			minimumDifferentMods = Config.Bind(ModName, nameof(minimumDifferentMods), 1,
 				"Minimum amount of card mods to be active");
