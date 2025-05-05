@@ -244,8 +244,7 @@ namespace DynamicCardMods
 			int modsAdded = 0;
 
 			// get a random mod to whitelist and remove it from orderedKeys
-			while ((currentCardsAdded < minimumAmountOfCards ||
-				(modsAdded < minimumDifferentMods.Value || minimumDifferentMods.Value >= blacklist.Count))
+			while ((currentCardsAdded < minimumAmountOfCards || modsAdded < minimumDifferentMods.Value)
 				&& blacklist.Count > 0)
 			{
 				int randomIndex = random.Next(blacklist.Count);
@@ -254,7 +253,10 @@ namespace DynamicCardMods
 				Log(categoryToAdd.name);
 				currentCardsAdded += cardsPerMod[categoryToAdd];
 				blacklist.RemoveAt(randomIndex);
-				modsAdded++;
+
+				//do not count a mod if it has no cards / is fully toggled off
+				if (cardsPerMod[categoryToAdd] > 0)
+					modsAdded++;
 			}
 			// Only unwanted categories remain
 			return blacklist;
