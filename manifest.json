@@ -1,6 +1,6 @@
 {
 	"name": "DynamicCardMods",
-	"version_number": "0.2.0",
+	"version_number": "1.0.0",
 	"website_url": "https://github.com/Hibouglorieux/DynamicCardMods",
 	"description": "Randomize card mods available each game",
 	"dependencies": [
