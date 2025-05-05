@@ -1,0 +1,12 @@
+{
+	"name": "DynamicCardMods",
+	"version_number": "0.2.0",
+	"website_url": "https://github.com/Hibouglorieux/DynamicCardMods",
+	"description": "Randomize card mods available each game",
+	"dependencies": [
+		"BepInEx-BepInExPack_ROUNDS-5.4.1901",
+		"willis81808-UnboundLib-3.2.14",
+		"Pykess-ModdingUtils-0.4.8",
+		"Pykess-CardChoiceSpawnUniqueCardPatch-0.1.10"
+    ]
+}
