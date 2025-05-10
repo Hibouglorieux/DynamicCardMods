@@ -29,7 +29,7 @@ namespace DynamicCardMods
 	{
 		private const string ModId = "com.HibouGlorieux.Rounds.DynamicCardMods";
 		internal const string ModName = "DynamicCardMods";
-		public const string Version = "0.1.0"; // What version are we on (major.minor.patch)?
+		public const string Version = "1.0.1"; // What version are we on (major.minor.patch)?
 
 		internal bool bCurseActivated = false;
 
@@ -134,16 +134,15 @@ namespace DynamicCardMods
 				if (!card.cardInfo.categories.Contains(cardCategory))
 					card.cardInfo.categories = card.cardInfo.categories.Append(cardCategory).ToArray();
 
-				if (!card.enabled)
-					continue;
 
 				if (bCurseActivated)
 					if (CurseHandler.IsACurse(card.cardInfo))
 						continue; // don't add it to the card pool if it's cursed
 
 				if (!cardsPerMod.ContainsKey(cardCategory))
-					cardsPerMod[cardCategory] = 1;
-				else
+					cardsPerMod[cardCategory] = 0;
+
+				if (card.enabled)
 					cardsPerMod[cardCategory]++;
 			}
 

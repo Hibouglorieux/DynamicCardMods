@@ -47,7 +47,7 @@
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="if $(ConfigurationName) == Debug xcopy /Y $(TargetPath) &quot;C:\Users\natha\AppData\Roaming\Thunderstore Mod Manager\DataFolder\ROUNDS\profiles\DynamicOnlineTest\BepInEx\plugins\HibouGlorieux-$(ProjectName)\&quot;&#xD;&#xA;if $(ConfigurationName) == Debug xcopy /Y $(TargetPath) &quot;C:\Users\natha\Desktop\ROUNDS-Client\BepInEx\plugins\HibouGlorieux-$(ProjectName)\&quot;&#xD;&#xA;if $(ConfigurationName) == Release xcopy /Y $(TargetPath) &quot;D:\work\RoundMods\$(ProjectName)\&quot;&#xD;&#xA;::if $(ConfigurationName) == Debug start $(ProjectDir)..\launchROUNDS.bat" />
+    <Exec Command="if $(ConfigurationName) == Debug xcopy /Y $(TargetPath) &quot;C:\Users\natha\AppData\Roaming\Thunderstore Mod Manager\DataFolder\ROUNDS\profiles\DynamicOnlineTest\BepInEx\plugins\HibouGlorieux-$(ProjectName)\&quot;&#xD;&#xA;if $(ConfigurationName) == Debug xcopy /Y $(TargetPath) &quot;C:\Users\natha\Desktop\ROUNDS-Client\BepInEx\plugins\HibouGlorieux-$(ProjectName)\&quot;&#xD;&#xA;if $(ConfigurationName) == Release xcopy /Y $(TargetPath) &quot;D:\work\RoundMods\$(ProjectName)\&quot;&#xD;&#xA;if $(ConfigurationName) == Debug start $(ProjectDir)..\launchROUNDS.bat" />
   </Target>
 
 </Project>
